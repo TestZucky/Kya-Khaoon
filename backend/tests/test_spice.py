@@ -12,7 +12,9 @@ Run:  python -m tests.test_spice
 
 import os
 
-os.environ.setdefault("DATABASE_URL", "sqlite:///./spice_test.db")
+from tests.dbsetup import use_test_db  # noqa: E402
+
+use_test_db()
 
 from app.models import DishConcept, Profile  # noqa: E402
 from app.models import Session as MealSession  # noqa: E402

@@ -6,19 +6,17 @@ from app.config import get_settings
 
 settings = get_settings()
 
-# check_same_thread and a busy timeout only matter for the SQLite dev/test
-# fallback — SQLite has a single writer, so `timeout` makes a second writer wait
-# for the lock instead of erroring. Postgres needs neither.
-connect_args = (
-    {"check_same_thread": False, "timeout": 10}
-    if settings.database_url.startswith("sqlite")
-    else {}
-)
-engine = create_engine(settings.database_url, connect_args=connect_args)
+# Postgres is the only supported database — dev, test and prod all run the same
+# engine in a container, so there is no dialect branch here.
+#
+# pool_pre_ping: containers get restarted and Postgres drops idle connections.
+# Without it the first request after that borrows a dead socket and fails; with
+# it SQLAlchemy checks the connection and transparently reconnects.
+engine = create_engine(settings.database_url, pool_pre_ping=True)
 
 
 def init_db() -> None:
-    """Create tables directly. Dev/test convenience — prod uses Alembic."""
+    """Create tables directly. Test/seed convenience — the app uses Alembic."""
     import app.models  # noqa: F401  (register tables on the metadata)
 
     SQLModel.metadata.create_all(engine)

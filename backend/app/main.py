@@ -5,7 +5,6 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
-from app.db import init_db
 from app.errors import register_error_handlers
 from app.logging_config import setup_logging
 from app.middleware import request_context
@@ -27,16 +26,8 @@ log = logging.getLogger("kya.main")
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    # Dev convenience: create tables on boot when running on SQLite. On Postgres,
-    # migrations own the schema — Alembic runs before the app.
-    if settings.database_url.startswith("sqlite"):
-        try:
-            init_db()
-        except Exception:
-            # A broken schema fails every request anyway. Say so once, here,
-            # rather than once per request with a confusing traceback.
-            log.exception("could not initialise the SQLite schema")
-            raise
+    # Nothing creates tables here: migrations own the schema, and the container
+    # entrypoint runs `alembic upgrade head` before this process starts.
     log.info(
         "starting · swiggy=%s · dishes=%s",
         settings.swiggy_client,

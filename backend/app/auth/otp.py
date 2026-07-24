@@ -37,7 +37,8 @@ def _hash(phone: str, code: str) -> str:
 
 
 def _as_aware(dt: datetime) -> datetime:
-    # SQLite hands datetimes back naive; treat stored times as UTC.
+    # These columns are TIMESTAMP WITHOUT TIME ZONE, so Postgres hands the value
+    # back naive. Everything is stored as UTC — say so explicitly before comparing.
     return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
 
 

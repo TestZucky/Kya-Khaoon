@@ -2,6 +2,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # The single .env at the repo root (backend/app/config.py → ../../.env).
@@ -12,7 +13,9 @@ class Settings(BaseSettings):
     # Reads the root .env, but real env vars (Docker, shell) still win over it.
     model_config = SettingsConfigDict(env_file=_ROOT_ENV, extra="ignore")
 
-    database_url: str = "postgresql+psycopg://kya:kya@localhost:5432/kya_khaoon"
+    # `db` is the compose service name — everything runs in containers, so the
+    # database is a network hop away, never localhost.
+    database_url: str = "postgresql+psycopg://kya:kya@db:5432/kya_khaoon"
 
     log_level: Literal["debug", "info", "warning", "error"] = "info"
 
@@ -31,7 +34,7 @@ class Settings(BaseSettings):
     # Where to bounce the browser after a successful connect.
     frontend_url: str = "http://localhost:5173"
     # Extra browser origins allowed to call the API, comma-separated. frontend_url
-    # is always allowed; this is for tunnels (ngrok) and deployed builds.
+    # is always allowed; this is for deployed builds on other origins.
     extra_cors_origins: str = ""
 
     # No key configured → the recommender falls back to the deterministic rules.
@@ -62,6 +65,19 @@ class Settings(BaseSettings):
 
     # Google Sign-In web client id (public). ID tokens must carry it as `aud`.
     google_client_id: str = ""
+
+    @field_validator("database_url")
+    @classmethod
+    def _must_be_postgres(cls, v: str) -> str:
+        # Postgres is the only supported database. A stale sqlite:// URL in a
+        # leftover .env would otherwise start fine and then behave subtly
+        # differently from CI and prod — fail loudly at import instead.
+        if not v.startswith(("postgresql://", "postgresql+psycopg://")):
+            raise ValueError(
+                f"DATABASE_URL must be a postgresql:// URL (got {v.split('://')[0]}://…). "
+                "Postgres is the only supported database."
+            )
+        return v
 
     @property
     def cors_origins_list(self) -> list[str]:

@@ -13,12 +13,14 @@ import os
 from datetime import datetime, timezone
 from urllib.parse import parse_qs, urlparse
 
-os.environ.setdefault("DATABASE_URL", "sqlite:///./oauth_test.db")
+from tests.dbsetup import fresh_db, use_test_db  # noqa: E402
+
+use_test_db()
 os.environ["SWIGGY_CLIENT"] = "fake"
 
 from sqlmodel import Session, select  # noqa: E402
 
-from app.db import engine, init_db  # noqa: E402
+from app.db import engine  # noqa: E402
 from app.models import SwiggyAuthFlow, User  # noqa: E402
 from app.swiggy import oauth  # noqa: E402
 
@@ -38,7 +40,7 @@ async def _fake_client_id(_db):
 
 
 def main() -> None:
-    init_db()
+    fresh_db()
     # Patch the network calls; keep the real PKCE + URL logic.
     oauth._discover = _fake_discover  # type: ignore[assignment]
     oauth._client_id = _fake_client_id  # type: ignore[assignment]

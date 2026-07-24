@@ -1,3 +1,11 @@
+# Everything runs in containers: `docker compose up` (or `make dev`).
+# Source is bind-mounted, so uvicorn --reload and Vite HMR still react to edits
+# on the host — you edit locally, it reloads in the container.
+#
+# Config comes from the root .env (optional; .env.example documents it). Values
+# set here win over it for the wiring that must be container-relative — the
+# database host is `db`, not localhost.
+
 services:
   db:
     image: postgres:16
@@ -6,6 +14,8 @@ services:
       POSTGRES_PASSWORD: kya
       POSTGRES_DB: kya_khaoon
     ports:
+      # Published so psql/TablePlus on the host can reach it. Nothing in the app
+      # needs this — services talk to `db:5432` over the compose network.
       - "5432:5432"
     volumes:
       - kya_pgdata:/var/lib/postgresql/data
@@ -14,6 +24,61 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+
+  backend:
+    build: ./backend
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      # Container-relative, and deliberately not overridable from .env: pointing
+      # the backend at localhost inside its own namespace reaches nothing.
+      DATABASE_URL: postgresql+psycopg://kya:kya@db:5432/kya_khaoon
+    volumes:
+      - ./backend:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      # Vite's /api proxy target. On the compose network the backend answers to
+      # its service name, so this cannot stay localhost.
+      VITE_PROXY_TARGET: http://backend:8000
+    volumes:
+      - ./frontend:/app
+      # Anonymous volume: keeps the image's node_modules from being hidden by
+      # the bind mount above (the host may have none, or a wrong-platform one).
+      - /app/node_modules
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+
+  # Not started by `up` — it's behind a profile. `make test` runs it.
+  # Same image as backend, separate database, no migrations (the suite builds
+  # its own schema and resets it between modules).
+  tests:
+    build: ./backend
+    profiles: ["test"]
+    environment:
+      DATABASE_URL: postgresql+psycopg://kya:kya@db:5432/kya_khaoon_test
+      RUN_MIGRATIONS: "0"
+      SECRET_KEY: test
+      OPENAI_API_KEY: ""
+      SWIGGY_MCP_URL: ""
+    volumes:
+      - ./backend:/app
+    depends_on:
+      db:
+        condition: service_healthy
+    command: ["python", "-m", "tests.run_all"]
 
 volumes:
   kya_pgdata:

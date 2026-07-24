@@ -1,79 +1,67 @@
-# Kya Khaoon — dev commands. Config comes from the single root .env.
+# Kya Khaoon — dev commands. Everything runs in containers; config comes from
+# the single root .env. There is no host-side venv or node_modules to maintain.
 .DEFAULT_GOAL := help
-.PHONY: help install dev backend frontend migrate seed wipe reset test test-ci stop clean
+.PHONY: help build dev up down logs backend frontend psql migrate revision seed wipe reset test sh stop clean
 
-BE := backend
+DC := docker compose
 FE := frontend
-DB := $(BE)/dev.db
-# Interpreter for test-ci, relative to $(BE). CI installs deps into the job's own
-# Python, so it overrides this with PY=python.
-PY ?= ./.venv/bin/python
 
 help:  ## list commands
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | \
 	  awk 'BEGIN{FS=":.*?## "}{printf "  \033[36m%-10s\033[0m %s\n",$$1,$$2}'
 
-install:  ## set up backend venv + frontend deps
-	python3 -m venv $(BE)/.venv
-	$(BE)/.venv/bin/pip install -r $(BE)/requirements.txt
-	cd $(FE) && npm install
+build:  ## build the images (only needed after a requirements/package.json change)
+	$(DC) build
 
-dev:  ## run backend + frontend together (Ctrl+C stops both)
-	./run.sh
+dev: up  ## alias for up
 
-backend:  ## run just the backend on :8000
-	cd $(BE) && ./.venv/bin/uvicorn app.main:app --reload --port 8000
+up:  ## run db + backend + frontend in the foreground (Ctrl+C stops them)
+	$(DC) up
 
-frontend:  ## run just the frontend on :5173
-	cd $(FE) && npm run dev
+down:  ## stop everything (keeps the database volume)
+	$(DC) down
 
-migrate:  ## bring the dev database up to the latest schema
-	cd $(BE) && ./.venv/bin/alembic upgrade head
+logs:  ## follow logs from all services
+	$(DC) logs -f
+
+backend:  ## follow just the backend logs
+	$(DC) logs -f backend
+
+frontend:  ## follow just the frontend logs
+	$(DC) logs -f frontend
+
+psql:  ## open a psql shell on the dev database
+	$(DC) exec db psql -U kya -d kya_khaoon
+
+migrate:  ## bring the database up to the latest schema
+	$(DC) run --rm backend alembic upgrade head
+
+revision:  ## autogenerate a migration:  make revision m="add thing"
+	$(DC) run --rm backend alembic revision --autogenerate -m "$(m)"
 
 seed:  ## OPTIONAL: load the starter dish catalogue (only the no-LLM fallback uses it)
-	cd $(BE) && ./.venv/bin/python -m app.seed
+	$(DC) run --rm backend python -m app.seed
 
-wipe:  ## delete the dev database and recreate it empty
-	rm -f $(DB)
-# Build the schema from migrations, not SQLModel's create_all. create_all left
-# alembic_version empty, so the next `alembic upgrade` replayed from revision 1
-# and collided with the tables it had just made.
-	@cd $(BE) && ./.venv/bin/alembic upgrade head >/dev/null 2>&1 \
-	  && echo "→ database wiped — empty catalogue, the LLM fills it on first deck" \
-	  || echo "→ wipe failed: run 'make migrate' to see the error"
+wipe:  ## destroy the database volume and rebuild the schema from migrations
+# Down with -v drops the volume, so the next `up` starts from an empty database
+# and the entrypoint's `alembic upgrade head` rebuilds it. Nothing here calls
+# create_all — that left alembic_version empty, so the next upgrade replayed
+# from revision 1 and collided with the tables it had just made.
+	$(DC) down -v
+	$(DC) run --rm backend alembic upgrade head
+	@echo "→ database wiped — empty catalogue, the LLM fills it on first deck"
 
 reset: wipe  ## alias for wipe
 
-test:  ## run the backend suite (deterministic — no live LLM/Swiggy calls)
-	@cd $(BE) && for t in test_auth test_device test_google test_swiggy_oauth test_llm test_llm_ranking test_spice \
-	    test_smoke test_cart test_mcp test_mcp_integration; do \
-	  printf "  %-22s " $$t; \
-	  OPENAI_API_KEY= SWIGGY_MCP_URL= SECRET_KEY=test \
-	    ./.venv/bin/python -m tests.$$t >/dev/null 2>&1 && echo PASS || echo FAIL; \
-	  rm -f *_test.db smoke.db cart_test.db 2>/dev/null || true; \
-	done
+test:  ## run the backend suite in a container against a throwaway Postgres
+	$(DC) run --rm tests
 
-test-ci:  ## same suite for CI: streams output and exits non-zero if anything fails
-# `test` hides output and always exits 0, which is fine for a glance locally but
-# invisible to CI. This discovers tests/test_*.py so a new test can't be forgotten,
-# runs each in its own process (they set env at import time), and fails the build.
-	@cd $(BE) && failed=""; \
-	for f in tests/test_*.py; do \
-	  t=$$(basename $$f .py); \
-	  echo "───── $$t"; \
-	  OPENAI_API_KEY= SWIGGY_MCP_URL= SECRET_KEY=test \
-	    $(PY) -m tests.$$t || failed="$$failed $$t"; \
-	  rm -f *_test.db smoke.db cart_test.db 2>/dev/null || true; \
-	done; \
-	if [ -n "$$failed" ]; then echo; echo "FAILED:$$failed"; exit 1; fi; \
-	echo; echo "all suites passed"
+sh:  ## shell into the backend container
+	$(DC) run --rm backend bash
 
-stop:  ## kill anything on the dev ports (8000, 5173)
-	@lsof -ti :8000 | xargs kill -9 2>/dev/null || true
-	@lsof -ti :5173 | xargs kill -9 2>/dev/null || true
-	@echo "→ stopped"
+stop: down  ## alias for down
 
-clean:  ## remove the db + frontend build (keeps installed deps)
-	rm -f $(DB)
+clean:  ## remove containers, volumes and the frontend build
+	$(DC) down -v --remove-orphans
 	rm -rf $(FE)/dist
 	@echo "→ cleaned"
