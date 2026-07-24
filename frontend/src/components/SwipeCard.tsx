@@ -8,6 +8,7 @@ type Stamp = { like: number; skip: number };
 /** Full-bleed food card — image fills it, everything else is overlaid. */
 export function SwipeCard({
   pick,
+  portions,
   delta,
   rotation,
   dragging,
@@ -15,6 +16,8 @@ export function SwipeCard({
   handlers,
 }: {
   pick: Pick;
+  /** Party size — swiping right adds this many portions, so price for that many. */
+  portions: number;
   delta: { x: number; y: number };
   rotation: number;
   dragging: boolean;
@@ -98,12 +101,19 @@ export function SwipeCard({
               >
                 {pick.name}
               </h3>
-              <span
-                className="text-orange-400 font-black text-2xl flex-shrink-0"
-                style={DISPLAY_FONT}
-              >
-                {formatPrice(pick.price)}
-              </span>
+              {/* What this card actually costs *you*: one portion per person, so
+                  a table of four sees the four-portion price, not a per-plate one
+                  they'd have to multiply in their head. */}
+              <div className="flex flex-col items-end flex-shrink-0">
+                <span className="text-orange-400 font-black text-2xl" style={DISPLAY_FONT}>
+                  {formatPrice(pick.price * portions)}
+                </span>
+                {portions > 1 && (
+                  <span className="text-white/45 text-[11px] font-semibold whitespace-nowrap">
+                    {formatPrice(pick.price)} each × {portions}
+                  </span>
+                )}
+              </div>
             </div>
 
             <div className="flex items-center gap-2.5 text-sm mb-3.5">
