@@ -1,9 +1,23 @@
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
+from urllib.parse import urlparse
 
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Secrets that ship in this repo's examples and defaults. Fine on a laptop,
+# fatal anywhere real — they're public knowledge by definition.
+_PUBLIC_SECRETS = {
+    "dev-secret",
+    "dev-insecure-change-me",
+    "changeme",
+    "secret",
+    "test",
+}
+
+# The compose credentials. Also public knowledge.
+_DEV_DB_CREDENTIALS = "kya:kya@"
 
 # The single .env at the repo root (backend/app/config.py → ../../.env).
 _ROOT_ENV = Path(__file__).resolve().parents[2] / ".env"
@@ -12,6 +26,15 @@ _ROOT_ENV = Path(__file__).resolve().parents[2] / ".env"
 class Settings(BaseSettings):
     # Reads the root .env, but real env vars (Docker, shell) still win over it.
     model_config = SettingsConfigDict(env_file=_ROOT_ENV, extra="ignore")
+
+    # "prod" for anything a real user can reach; "dev" on a laptop and in CI.
+    # prod turns on the startup checks at the bottom of this file, which refuse
+    # to boot on a configuration that would leak or be trivially broken into.
+    #
+    # It defaults to prod and compose sets it back to dev, rather than the other
+    # way round: forgetting an env var should cost you a loud failure on your
+    # laptop, never a quietly unguarded deployment.
+    app_env: Literal["dev", "prod"] = "prod"
 
     # `db` is the compose service name — everything runs in containers, so the
     # database is a network hop away, never localhost.
@@ -83,6 +106,63 @@ class Settings(BaseSettings):
                 "Postgres is the only supported database."
             )
         return v
+
+    @model_validator(mode="after")
+    def _production_must_be_configured(self) -> "Settings":
+        """
+        Refuse to start a production instance on a dev configuration.
+
+        Every one of these is a real hole rather than untidiness, so they fail
+        rather than warn — a warning in a startup log is a warning nobody reads.
+        They're collected and raised together so one deploy tells you everything
+        that's wrong, instead of one round-trip per problem.
+        """
+        if self.app_env != "prod":
+            return self
+
+        problems: list[str] = []
+
+        if self.secret_key in _PUBLIC_SECRETS or len(self.secret_key) < 32:
+            problems.append(
+                "SECRET_KEY is a known dev value or under 32 chars — it signs every "
+                "session token, so anyone who guesses it can mint a session for any "
+                "user. Generate one with: python -c \"import secrets; "
+                'print(secrets.token_urlsafe(48))"'
+            )
+
+        if not self.token_encryption_key.strip():
+            problems.append(
+                "TOKEN_ENCRYPTION_KEY is unset, so the Swiggy tokens fall back to a key "
+                "derived from SECRET_KEY — rotating one would then silently disconnect "
+                "every user. Generate one with: python -c \"from cryptography.fernet "
+                'import Fernet; print(Fernet.generate_key().decode())"'
+            )
+
+        if self.sms_provider == "console":
+            problems.append(
+                "SMS_PROVIDER=console returns the OTP in the /auth/request-otp response "
+                "body — anyone could sign in as any phone number. Configure twilio."
+            )
+
+        if _DEV_DB_CREDENTIALS in self.database_url:
+            problems.append(
+                "DATABASE_URL still carries the compose credentials (kya:kya), which are "
+                "published in this repo."
+            )
+
+        for name, url in (
+            ("SWIGGY_REDIRECT_URI", self.swiggy_redirect_uri),
+            ("FRONTEND_URL", self.frontend_url),
+        ):
+            parsed = urlparse(url)
+            if parsed.scheme != "https" or parsed.hostname in ("localhost", "127.0.0.1"):
+                problems.append(f"{name} must be an https:// URL on a real host (got {url!r}).")
+
+        if problems:
+            raise ValueError(
+                "refusing to start with APP_ENV=prod:\n  - " + "\n  - ".join(problems)
+            )
+        return self
 
     @property
     def cors_origins_list(self) -> list[str]:

@@ -34,6 +34,10 @@ services:
       # Container-relative, and deliberately not overridable from .env: pointing
       # the backend at localhost inside its own namespace reaches nothing.
       DATABASE_URL: postgresql+psycopg://kya:kya@db:5432/kya_khaoon
+      # This compose file *is* the dev environment. APP_ENV defaults to prod so
+      # that a deployment which forgets to set it fails loudly rather than
+      # running unguarded — so dev is the one that has to say so.
+      APP_ENV: dev
     volumes:
       - ./backend:/app
     ports:
@@ -70,6 +74,7 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://kya:kya@db:5432/kya_khaoon_test
       RUN_MIGRATIONS: "0"
+      APP_ENV: dev
       SECRET_KEY: test
       OPENAI_API_KEY: ""
       SWIGGY_MCP_URL: ""
