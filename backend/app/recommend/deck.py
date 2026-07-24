@@ -122,13 +122,22 @@ def _recent_names(db: DBSession, user_id: int, days: int = 3) -> list[str]:
 
 
 async def _fetch_order_insights(
-    client: SwiggyClient, user_token: str | None
+    client: SwiggyClient, address_id: str, user_token: str | None
 ) -> OrderInsights:
     """Best-effort: never let a history hiccup block the deck."""
     try:
-        orders = await client.get_orders(limit=20, user_token=user_token)
+        orders = await client.get_orders(
+            address_id=address_id, limit=20, user_token=user_token
+        )
     except Exception as e:  # noqa: BLE001 — history is a nicety, not a requirement
-        log.warning("order-history fetch failed (%s); continuing without it", e)
+        # Name what the deck loses, so this doesn't read like a harmless blip: a
+        # persistent failure here silently drops taste patterns and the
+        # just-ordered variety signal from stage 1.
+        log.warning(
+            "order-history fetch failed (%s); building deck without taste patterns "
+            "or the just-ordered variety signal",
+            e,
+        )
         return OrderInsights(summary=None, recent=[])
     return summarize_orders(orders)
 
@@ -201,7 +210,7 @@ async def build_deck(
     user_token: str | None = None,
 ) -> tuple[Deck, list[Card]]:
     # Mine past orders for patterns before picking (order history → smarter deck).
-    insights = await _fetch_order_insights(client, user_token)
+    insights = await _fetch_order_insights(client, address_id, user_token)
     picks = await _select_stage1(db, profile, session, user_id, insights)
     if not picks:
         # Both stage-1 paths came back empty. Nearly always one setup mistake:

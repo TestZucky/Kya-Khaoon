@@ -213,10 +213,12 @@ class McpSwiggyClient:
         return addresses_from_payload(data)
 
     async def get_orders(
-        self, *, limit: int = 20, user_token: str | None = None
+        self, *, address_id: str, limit: int = 20, user_token: str | None = None
     ) -> list[PastOrder]:
+        # addressId is required by the tool, not optional: omitting it fails the
+        # call outright rather than returning unscoped history.
         data = await self._session(user_token).call_tool(
-            "get_food_orders", {"limit": limit}
+            "get_food_orders", {"addressId": address_id, "limit": limit}
         )
         return past_orders_from_payload(data)[:limit]
 
