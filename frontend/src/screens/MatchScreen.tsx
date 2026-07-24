@@ -74,9 +74,12 @@ export default function MatchScreen() {
   const portions = prefs.partySize;
   const menuTotal = matched.price * portions;
 
+  // Replace, not push: /match was pushed from /picks, so pushing /picks back on
+  // top would stack a picks → match → picks history the Back button has to walk
+  // through. The match is done with; drop it off the stack.
   const keepBrowsing = () => {
     clearMatch();
-    navigate("/picks");
+    navigate("/picks", { replace: true });
   };
 
   // Adds the dish to the user's Swiggy cart. This is the hand-off — payment and

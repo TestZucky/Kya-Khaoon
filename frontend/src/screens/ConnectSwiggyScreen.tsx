@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "motion/react";
 import { Loader2 } from "lucide-react";
 import { GlowOrb, Screen } from "@/components/Screen";
@@ -29,7 +29,15 @@ export default function ConnectSwiggyScreen() {
     [navigate, prefs.onboarded],
   );
 
+  // This is a sign-up step, and an onboarded user is past it — they connect or
+  // reconnect Swiggy from the profile screen instead. Reaching it anyway means
+  // they pressed Back out of the deck into a finished step, so send them
+  // forward rather than showing a screen they already dealt with. `returned` is
+  // the exception: that's the OAuth callback landing here, and it must run.
+  const backedInto = prefs.onboarded && !returned;
+
   useEffect(() => {
+    if (backedInto) return;
     // The callback just confirmed the connection — trust it and move on, even
     // if a status re-check would race the freshly-stored token on reload.
     if (returned === "connected") {
@@ -45,7 +53,7 @@ export default function ConnectSwiggyScreen() {
     return () => {
       alive = false;
     };
-  }, [nextStep, returned]);
+  }, [backedInto, nextStep, returned]);
 
   const connect = async () => {
     setConnecting(true);
@@ -57,6 +65,8 @@ export default function ConnectSwiggyScreen() {
       setError("Couldn't reach Swiggy. Try again.");
     }
   };
+
+  if (backedInto) return <Navigate to="/picks" replace />;
 
   if (checking) {
     return (
