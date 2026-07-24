@@ -14,9 +14,9 @@ type CartState =
   | { phase: "error"; message: string };
 
 /**
- * Swiggy's real bill. The card price is one dish pre-tax; the payable total adds
- * GST, delivery, packing and platform fees, so we show the breakdown rather than
- * letting the jump surprise people at checkout.
+ * Swiggy's real bill. The card price is the portions pre-tax; the payable total
+ * adds GST, delivery, packing and platform fees, so we show the breakdown rather
+ * than letting the jump surprise people at checkout.
  */
 function BillBreakdown({ bill }: { bill: CartBill }) {
   if (bill.total == null) return null;
@@ -64,11 +64,15 @@ function BillBreakdown({ bill }: { bill: CartBill }) {
 
 export default function MatchScreen() {
   const navigate = useNavigate();
-  const { matched, clearMatch, orderMatched } = useAppState();
+  const { matched, clearMatch, orderMatched, prefs } = useAppState();
   const [cart, setCart] = useState<CartState>({ phase: "idle" });
 
   // Landing here directly (refresh, deep link) has nothing to celebrate.
   if (!matched) return <Navigate to="/picks" replace />;
+
+  // One portion per person, so the price we quote is the party's, not a plate's.
+  const portions = prefs.partySize;
+  const menuTotal = matched.price * portions;
 
   const keepBrowsing = () => {
     clearMatch();
@@ -143,10 +147,14 @@ export default function MatchScreen() {
             <p className="text-white/45 text-sm mb-3">{matched.restaurant}</p>
             <div className="flex items-center gap-3 text-sm">
               <span className="text-orange-400 font-bold text-lg">
-                {formatPrice(matched.price)}
+                {formatPrice(menuTotal)}
               </span>
               {/* Set expectations up front — Swiggy adds tax + fees at checkout. */}
-              <span className="text-white/30 text-xs">+ taxes &amp; fees</span>
+              <span className="text-white/30 text-xs">
+                {portions > 1
+                  ? `${formatPrice(matched.price)} × ${portions} · + taxes & fees`
+                  : "+ taxes & fees"}
+              </span>
               {matched.etaMinutes != null && (
                 <>
                   <span className="text-white/20">·</span>
@@ -176,7 +184,8 @@ export default function MatchScreen() {
               Open Swiggy to checkout <ExternalLink size={18} />
             </a>
             <div className="flex items-center justify-center gap-2 mb-3 text-green-400 text-sm font-semibold">
-              <Check size={16} /> Added {matched.name} to your Swiggy cart
+              <Check size={16} /> Added {portions > 1 ? `${portions} × ` : ""}
+              {matched.name} to your Swiggy cart
             </div>
           </>
         ) : (
@@ -191,7 +200,7 @@ export default function MatchScreen() {
                 <Loader2 size={18} className="animate-spin" /> Adding to cart…
               </>
             ) : (
-              <>🛵 Order on Swiggy — {formatPrice(matched.price)}</>
+              <>🛵 Order on Swiggy — {formatPrice(menuTotal)}</>
             )}
           </button>
         )}

@@ -30,7 +30,7 @@ const MEAL_TITLE: Record<MealPeriod, string> = {
  */
 export default function PicksScreen() {
   const navigate = useNavigate();
-  const { deck, deckSize, deckStatus, deckError, fetchDeck, likeTop, skipTop } =
+  const { deck, deckSize, deckStatus, deckError, fetchDeck, likeTop, prefs, skipTop } =
     useAppState();
 
   const [minSplashDone, setMinSplashDone] = useState(false);
@@ -72,7 +72,11 @@ export default function PicksScreen() {
             {title}
           </h1>
           <p className="text-white/35 text-xs font-medium mt-0.5">
-            {showDeck ? `${seen + 1} of ${deckSize} · swipe to decide` : "Kya Khaoon?"}
+            {showDeck
+              ? `${seen + 1} of ${deckSize} · ${
+                  prefs.partySize > 1 ? `prices for ${prefs.partySize}` : "swipe to decide"
+                }`
+              : "Kya Khaoon?"}
           </p>
         </div>
         <button
@@ -103,6 +107,7 @@ export default function PicksScreen() {
               {hasNext && <DeckShadowCard />}
               <SwipeCard
                 pick={top}
+                portions={prefs.partySize}
                 delta={swipe.delta}
                 rotation={swipe.rotation}
                 dragging={swipe.dragging}
