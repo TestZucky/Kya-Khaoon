@@ -127,10 +127,15 @@ class SwiggyClient(Protocol):
         """
         ...
 
-    async def get_cart(self, *, user_token: str | None = None) -> CartTotal | None:
+    async def get_cart(
+        self, *, address_id: str, user_token: str | None = None
+    ) -> CartTotal | None:
         """
         The live Swiggy cart's real payable total, read straight after we add an
         item. None when Swiggy can't tell us — the caller then falls back to
         showing the menu price rather than inventing a number.
+
+        `address_id` is required — delivery charges depend on where it's going,
+        and Swiggy rejects the call without one.
         """
         ...
