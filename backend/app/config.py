@@ -47,6 +47,11 @@ class Settings(BaseSettings):
     secret_key: str = "dev-insecure-change-me"
     session_ttl_hours: int = 720  # 30 days
 
+    # Encrypts the Swiggy credentials we hold on each user's behalf (app/crypto.py).
+    # Comma-separated to rotate: the first key encrypts, all of them can decrypt.
+    # Empty derives a key from secret_key, so dev and CI need no extra setup.
+    token_encryption_key: str = ""
+
     # Device sign-in creates users with nothing verified, and a new user can
     # trigger a paid deck generation — so cap how many one IP can mint.
     device_signup_window_seconds: int = 3600

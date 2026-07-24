@@ -11,7 +11,10 @@ help:  ## list commands
 	  awk 'BEGIN{FS=":.*?## "}{printf "  \033[36m%-10s\033[0m %s\n",$$1,$$2}'
 
 build:  ## build the images (only needed after a requirements/package.json change)
-	$(DC) build
+# --profile test included deliberately: `docker compose build` skips services
+# behind a profile, which left the tests image on an old requirements.txt and
+# failing on imports the rebuilt backend had.
+	$(DC) --profile test build
 
 dev: up  ## alias for up
 
