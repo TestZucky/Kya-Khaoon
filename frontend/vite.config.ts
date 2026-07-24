@@ -16,11 +16,11 @@ export default defineConfig({
   server: {
     port: 5173,
     host: true,
-    // Accept requests proxied through a Cloudflare/ngrok tunnel (dev only —
-    // the Host header is the tunnel domain, which Vite blocks by default).
+    // Dev only: accept any Host header, so reaching the container from another
+    // device on the network works without listing each hostname here.
     allowedHosts: true,
     // Same-origin API: the frontend calls "/api/*" and Vite forwards to the
-    // backend, so a single tunnel origin serves both (no mixed content, no CORS).
+    // backend, so one origin serves both (no CORS).
     proxy: {
       "/api": {
         // Inside compose the backend answers to its service name, not localhost

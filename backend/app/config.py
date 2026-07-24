@@ -34,7 +34,7 @@ class Settings(BaseSettings):
     # Where to bounce the browser after a successful connect.
     frontend_url: str = "http://localhost:5173"
     # Extra browser origins allowed to call the API, comma-separated. frontend_url
-    # is always allowed; this is for tunnels (ngrok) and deployed builds.
+    # is always allowed; this is for deployed builds on other origins.
     extra_cors_origins: str = ""
 
     # No key configured → the recommender falls back to the deterministic rules.

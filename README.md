@@ -191,9 +191,6 @@ changes.
 | `make down` | stop everything (keeps your data) |
 | `make clean` | remove containers, volumes and the frontend build |
 
-`./run.sh` does the same as `make dev`, plus an ngrok tunnel when `NGROK_DOMAIN`
-is set — that's how you test Google Sign-In on a phone, which needs HTTPS.
-
 API docs are at `http://localhost:8000/docs` once the backend is up.
 
 ## License
