@@ -18,7 +18,10 @@ BudgetBand = Literal["under_200", "b200_350", "b350_500", "above_500", "ask"]
 AdventureLevel = Literal[
     "mostly_familiar", "familiar_variety", "explore_often", "surprise_me"
 ]
-MealPeriod = Literal["breakfast", "lunch", "dinner", "snack"]
+# The day, as Indian eating actually splits it. `snack` is the 4–7pm chai/snack
+# window (not "any small dish"), and `late_night` is the post-11pm one — without
+# them a 4pm open reads as dinner, which is the wrong deck entirely.
+MealPeriod = Literal["breakfast", "lunch", "snack", "dinner", "late_night"]
 SwipeDirection = Literal["right", "left"]
 
 

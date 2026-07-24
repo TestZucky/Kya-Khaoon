@@ -111,7 +111,8 @@ class Session(SQLModel, table=True):
     user_id: int = Field(foreign_key="user.id", index=True)
     mood: str | None = None  # comfort | light | adventurous | ...
     hunger: str | None = None  # snack | normal | very_hungry
-    # Meal period, from the client's clock: breakfast | lunch | dinner | snack.
+    # Meal period, from the client's clock:
+    # breakfast | lunch | snack (evening) | dinner | late_night.
     meal: str | None = None
     budget_override: int | None = None  # rupees, beats the profile band for this meal
     companions: str | None = None  # solo | partner | friends | family
@@ -143,7 +144,8 @@ class DishConcept(SQLModel, table=True):
     typical_price: int = 300
     # Curated fallback image, used when the live offer has none (e.g. dev/fake).
     image_url: str = ""
-    # Which meal periods this dish suits: breakfast | lunch | dinner | snack.
+    # Which meal periods this dish suits:
+    # breakfast | lunch | snack (evening) | dinner | late_night.
     meals: list[str] = Field(default_factory=list, sa_column=_json_list())
 
 

@@ -29,7 +29,7 @@ from app.recommend.concepts import (
 )
 
 _VEG_DIETS = {"veg", "vegan", "jain"}
-_MEAL_PERIODS = {"breakfast", "lunch", "dinner", "snack"}
+_MEAL_PERIODS = {"breakfast", "lunch", "snack", "dinner", "late_night"}
 
 
 def _clamp(value: object, lo: int, hi: int, default: int) -> int:
@@ -42,6 +42,16 @@ def _clamp(value: object, lo: int, hi: int, default: int) -> int:
 # Profile.spice_level (0..4) as words — the model reasons about "mild" far better
 # than about the number 0.
 _SPICE_WORDS = ["mild", "medium", "spicy", "extra hot", "very hot (devil mode)"]
+
+# Meal periods as the model should read them. The tokens are the app's, the
+# glosses are what actually tells it what to cook up for this hour.
+_MEAL_WORDS = {
+    "breakfast": "breakfast",
+    "lunch": "lunch",
+    "snack": "evening snack time (the 4-7pm chai-and-snack hour)",
+    "dinner": "dinner",
+    "late_night": "late night (past 11pm)",
+}
 
 _SCHEMA = {
     "type": "object",
@@ -86,7 +96,13 @@ _SCHEMA = {
                         "type": "array",
                         "items": {
                             "type": "string",
-                            "enum": ["breakfast", "lunch", "dinner", "snack"],
+                            "enum": [
+                                "breakfast",
+                                "lunch",
+                                "snack",
+                                "dinner",
+                                "late_night",
+                            ],
                         },
                     },
                     "ingredients": {"type": "array", "items": {"type": "string"}},
@@ -126,7 +142,10 @@ _SYSTEM = (
     "avoided ingredient. If the user is vegetarian/vegan/Jain, every pick must fit. "
     "Set is_veg correctly and list likely allergens in `contains` (lowercase, e.g. "
     "dairy, gluten, nuts, peanuts, soy, fish, egg, shellfish).\n"
-    "- Fit the meal time (breakfast dishes only at breakfast, etc.).\n"
+    "- Fit the meal time. The five periods are breakfast, lunch, snack (the 4-7pm "
+    "chai-and-snack hour — chaat, samosa, rolls, momos, not a full thali), dinner, "
+    "and late_night (11pm onward — quick, comforting, widely open). Breakfast "
+    "dishes only at breakfast; don't headline the snack hour with a heavy meal.\n"
     "- Respect the spice tolerance: don't headline a deck with fiery dishes for "
     "someone who eats mild.\n"
     "- Stay near the budget. Favour variety over what they ate recently.\n"
@@ -169,7 +188,7 @@ def _build_user_prompt(
         if 0 <= profile.spice_level < len(_SPICE_WORDS)
         else "Spice tolerance: medium",
         f"Budget: up to ₹{cap} per meal" if cap else "Budget: flexible",
-        f"Meal right now: {session.meal or 'unspecified'}",
+        f"Meal right now: {_MEAL_WORDS.get(session.meal or '', session.meal or 'unspecified')}",
     ]
     if profile.home_state:
         lines.append(f"Home region: {profile.home_state}")

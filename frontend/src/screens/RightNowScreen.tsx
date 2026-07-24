@@ -5,14 +5,15 @@ import { GlowOrb, Screen } from "@/components/Screen";
 import { PrimaryButton } from "@/components/Button";
 import { MOODS, PARTY_SIZES } from "@/data/preferences";
 import { DISPLAY_FONT, ORANGE_GRAD } from "@/lib/theme";
-import { mealNow } from "@/lib/mapPrefs";
+import { mealNow, type MealPeriod } from "@/lib/mapPrefs";
 import { useAppState } from "@/state/AppState";
 
-const GREETING: Record<string, string> = {
+const GREETING: Record<MealPeriod, string> = {
   breakfast: "Morning 🌅",
   lunch: "Lunchtime 🍚",
-  dinner: "Evening 🌙",
-  snack: "Late night 🌃",
+  snack: "Evening 🌇",
+  dinner: "Dinner time 🌙",
+  late_night: "Late night 🌃",
 };
 
 /**

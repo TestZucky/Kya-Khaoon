@@ -61,13 +61,23 @@ export function companionsForParty(people: number): string | undefined {
   return hit?.companions;
 }
 
-/** Meal period from the device clock — feeds time-aware recommendations. */
-export function mealNow(date = new Date()): string {
+/** The backend's `MealPeriod` vocabulary — see schemas.py. */
+export type MealPeriod = "breakfast" | "lunch" | "snack" | "dinner" | "late_night";
+
+/**
+ * Meal period from the device clock — feeds time-aware recommendations.
+ *
+ * Five windows, not three: 4pm is neither lunch nor dinner in India, it's the
+ * chai-and-snack hour, and a 1am craving isn't dinner either. Collapsing those
+ * into the neighbouring meal is what made a 4pm open serve a dinner deck.
+ */
+export function mealNow(date = new Date()): MealPeriod {
   const h = date.getHours();
   if (h >= 4 && h < 11) return "breakfast";
   if (h >= 11 && h < 16) return "lunch";
-  if (h >= 16 && h < 23) return "dinner";
-  return "snack"; // late night
+  if (h >= 16 && h < 19) return "snack"; // evening: chaat, samosa, rolls
+  if (h >= 19 && h < 23) return "dinner";
+  return "late_night";
 }
 
 export function toProfilePayload(prefs: Preferences): ProfilePayload {
