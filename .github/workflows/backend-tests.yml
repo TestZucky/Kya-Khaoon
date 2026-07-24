@@ -1,0 +1,45 @@
+name: Backend tests
+
+# Runs on PRs into main (before merge) and on main itself (after merge, so a
+# broken merge result is caught even though every PR was green on its own).
+#
+# Deliberately no `paths:` filter. This job is a required status check, and a
+# path-filtered required check never reports on PRs that don't touch those
+# paths — GitHub leaves it pending and the PR can never merge.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+# A new push to a PR makes the in-flight run obsolete. Never cancel on main —
+# every commit there should have its own recorded result.
+concurrency:
+  group: backend-tests-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  test:
+    name: backend
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r backend/requirements.txt
+
+      - name: Run backend suite
+        # PY=python: the suite runs against the job's interpreter, not the
+        # local ./.venv the default targets expect.
+        run: make test-ci PY=python

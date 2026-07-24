@@ -1,10 +1,13 @@
 # Kya Khaoon — dev commands. Config comes from the single root .env.
 .DEFAULT_GOAL := help
-.PHONY: help install dev backend frontend migrate seed wipe reset test stop clean
+.PHONY: help install dev backend frontend migrate seed wipe reset test test-ci stop clean
 
 BE := backend
 FE := frontend
 DB := $(BE)/dev.db
+# Interpreter for test-ci, relative to $(BE). CI installs deps into the job's own
+# Python, so it overrides this with PY=python.
+PY ?= ./.venv/bin/python
 
 help:  ## list commands
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | \
@@ -49,6 +52,21 @@ test:  ## run the backend suite (deterministic — no live LLM/Swiggy calls)
 	    ./.venv/bin/python -m tests.$$t >/dev/null 2>&1 && echo PASS || echo FAIL; \
 	  rm -f *_test.db smoke.db cart_test.db 2>/dev/null || true; \
 	done
+
+test-ci:  ## same suite for CI: streams output and exits non-zero if anything fails
+# `test` hides output and always exits 0, which is fine for a glance locally but
+# invisible to CI. This discovers tests/test_*.py so a new test can't be forgotten,
+# runs each in its own process (they set env at import time), and fails the build.
+	@cd $(BE) && failed=""; \
+	for f in tests/test_*.py; do \
+	  t=$$(basename $$f .py); \
+	  echo "───── $$t"; \
+	  OPENAI_API_KEY= SWIGGY_MCP_URL= SECRET_KEY=test \
+	    $(PY) -m tests.$$t || failed="$$failed $$t"; \
+	  rm -f *_test.db smoke.db cart_test.db 2>/dev/null || true; \
+	done; \
+	if [ -n "$$failed" ]; then echo; echo "FAILED:$$failed"; exit 1; fi; \
+	echo; echo "all suites passed"
 
 stop:  ## kill anything on the dev ports (8000, 5173)
 	@lsof -ti :8000 | xargs kill -9 2>/dev/null || true
