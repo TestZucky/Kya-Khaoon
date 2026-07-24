@@ -6,7 +6,7 @@ import { DeckShadowCard, SwipeCard } from "@/components/SwipeCard";
 import LoadingSplash from "@/screens/LoadingSplash";
 import { useSwipeDeck } from "@/hooks/useSwipeDeck";
 import { DISPLAY_FONT, GOLD_GRAD, ORANGE_GRAD } from "@/lib/theme";
-import { mealNow } from "@/lib/mapPrefs";
+import { mealNow, type MealPeriod } from "@/lib/mapPrefs";
 import { useAppState } from "@/state/AppState";
 
 /**
@@ -16,11 +16,12 @@ import { useAppState } from "@/state/AppState";
  */
 const MIN_SPLASH_MS = 1800;
 
-const MEAL_TITLE: Record<string, string> = {
+const MEAL_TITLE: Record<MealPeriod, string> = {
   breakfast: "Breakfast picks ☀️",
   lunch: "Lunch picks 🍚",
+  snack: "Evening picks 🌇",
   dinner: "Dinner picks 🌙",
-  snack: "Late-night picks 🌃",
+  late_night: "Late-night picks 🌃",
 };
 
 /**

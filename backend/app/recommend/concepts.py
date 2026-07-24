@@ -44,6 +44,24 @@ _MOOD_HEAVINESS = {
 }
 
 
+# The card reason for a dish that fits the current period. Lunch and dinner get
+# none — "a good dinner pick" at dinner is noise, where "a good breakfast pick"
+# genuinely narrows what's on offer.
+_MEAL_REASON = {
+    "breakfast": "A good breakfast pick",
+    "snack": "Right for the evening snack hour",
+    "late_night": "Still good this late",
+}
+
+# Periods whose dishes are an acceptable second choice when nothing is tagged for
+# the current one. Deliberately asymmetric: dinner food works late at night, but
+# a late-night bite shouldn't headline a dinner deck.
+_MEAL_ALSO_FITS = {
+    "snack": {"breakfast"},
+    "late_night": {"snack", "dinner"},
+}
+
+
 @dataclass
 class ScoredConcept:
     concept: DishConcept
@@ -138,8 +156,14 @@ def select_concepts(
         if session.meal and c.meals:
             if session.meal in c.meals:
                 score += 2.0
-                if session.meal == "breakfast":
-                    reasons.append("A good breakfast pick")
+                reason = _MEAL_REASON.get(session.meal)
+                if reason:
+                    reasons.append(reason)
+            elif set(c.meals) & _MEAL_ALSO_FITS.get(session.meal, set()):
+                # An adjacent period — half the bonus, no penalty. Keeps a late
+                # night from scoring every dish identically just because almost
+                # nothing is explicitly tagged for it.
+                score += 1.0
             else:
                 score -= 3.0
 
