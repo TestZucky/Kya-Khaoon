@@ -222,8 +222,14 @@ class McpSwiggyClient:
         )
         return past_orders_from_payload(data)[:limit]
 
-    async def get_cart(self, *, user_token: str | None = None) -> CartTotal | None:
-        data = await self._session(user_token).call_tool("get_food_cart", {})
+    async def get_cart(
+        self, *, address_id: str, user_token: str | None = None
+    ) -> CartTotal | None:
+        # addressId is required by the tool: the fees it prices in (delivery
+        # especially) are address-dependent, so omitting it fails the call.
+        data = await self._session(user_token).call_tool(
+            "get_food_cart", {"addressId": address_id}
+        )
         return cart_total_from_payload(data)
 
     async def search_menu(

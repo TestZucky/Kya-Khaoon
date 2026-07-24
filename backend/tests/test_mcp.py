@@ -2,17 +2,20 @@
 Tests for the MCP Swiggy client.
 
 The transport (initialize → tools/call over HTTP/SSE) can't hit the real server
-here, so we test the two halves that carry the correctness:
+here, so we test the three halves that carry the correctness:
 
   1. Response handling — extracting JSON-RPC messages from both `application/json`
      and `text/event-stream`, and unwrapping a CallToolResult.
   2. Field mapping — against the EXACT payloads captured from a live Swiggy
      account, so the shape the deck consumes is proven, ad-stripping and all.
+  3. Request building — the arguments we put ON the wire for each tool.
 
 Run:  python -m tests.test_mcp
 """
 
+import asyncio
 import json
+import os
 from types import SimpleNamespace
 
 from app.swiggy.mcp import menu_items_from_payload, restaurants_from_payload
@@ -139,6 +142,84 @@ def test_tool_payload_error_raises() -> None:
         assert "boom" in str(e)
     else:
         raise AssertionError("expected an error")
+
+
+class _RecordingSession:
+    """Stands in for StreamableHttpMcp: records the call, returns an empty payload."""
+
+    def __init__(self, calls: list[tuple[str, dict]]) -> None:
+        self._calls = calls
+
+    async def call_tool(self, name: str, args: dict) -> dict:
+        self._calls.append((name, args))
+        return {}  # every mapper tolerates an empty payload
+
+
+def test_tool_arguments_sent_on_the_wire() -> None:
+    """
+    Pin the OUTGOING arguments, not just the incoming mapping.
+
+    `addressId` is required by five of the six tools we call — omitting it does
+    not degrade the response, it fails the call outright. And every one of those
+    call sites is best-effort: a cart total quietly falls back to the menu price,
+    history quietly comes back empty. Nothing else in the suite would catch it,
+    because the fake client accepts any arguments at all. So assert the exact
+    dict we hand the transport.
+    """
+    os.environ["SWIGGY_MCP_URL"] = "http://mcp.invalid"  # never dialled
+    from app.config import get_settings
+    from app.swiggy.mcp import McpSwiggyClient
+
+    get_settings.cache_clear()
+    client = McpSwiggyClient()
+    calls: list[tuple[str, dict]] = []
+    client._session = lambda user_token: _RecordingSession(calls)  # type: ignore[assignment]
+
+    addr = "228077662"
+
+    async def drive() -> None:
+        await client.get_addresses()
+        await client.get_orders(address_id=addr, limit=20)
+        await client.get_cart(address_id=addr)
+        await client.search_menu(address_id=addr, query="biryani")
+        await client.search_restaurants(address_id=addr, query="biryani")
+        await client.add_to_cart(
+            address_id=addr,
+            restaurant_id="508690",
+            restaurant_name="Taimur Biryani Centre",
+            menu_item_id="87630555",
+            quantity=2,
+        )
+
+    asyncio.run(drive())
+
+    sent = dict(calls)  # each tool is driven exactly once above
+    assert len(sent) == len(calls) == 6, calls
+
+    # get_addresses is the one tool that takes no address — it's how you get one.
+    assert sent["get_addresses"] == {}
+
+    for tool in (
+        "get_food_orders",
+        "get_food_cart",
+        "search_menu",
+        "search_restaurants",
+        "update_food_cart",
+    ):
+        assert sent[tool].get("addressId") == addr, (tool, sent[tool])
+    print(f"  ok  addressId sent on all {len(sent) - 1} address-scoped tools")
+
+    # Full argument shapes for the two write-ish calls.
+    assert sent["get_food_orders"] == {"addressId": addr, "limit": 20}
+    assert sent["update_food_cart"] == {
+        "restaurantId": "508690",
+        "restaurantName": "Taimur Biryani Centre",
+        "addressId": addr,
+        "cartItems": [{"menu_item_id": "87630555", "quantity": 2}],
+    }
+    # vegFilter is sent only when asked for — an unfiltered search must not
+    # smuggle in vegFilter=0 and change what Swiggy ranks.
+    assert "vegFilter" not in sent["search_menu"], sent["search_menu"]
 
 
 def main() -> None:

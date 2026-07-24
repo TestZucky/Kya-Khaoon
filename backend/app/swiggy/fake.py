@@ -48,7 +48,9 @@ class FakeSwiggyClient:
     async def get_addresses(self, *, user_token: str | None = None) -> list[Address]:
         return list(FAKE_ADDRESSES)
 
-    async def get_cart(self, *, user_token: str | None = None) -> CartTotal | None:
+    async def get_cart(
+        self, *, address_id: str = "", user_token: str | None = None
+    ) -> CartTotal | None:
         if not self.cart:
             return None
         item_total = sum(

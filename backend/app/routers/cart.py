@@ -65,7 +65,9 @@ async def add_to_cart(
     # — the item IS in the cart either way, so a failure here must not 502.
     bill = None
     try:
-        bill = await client.get_cart(user_token=token)
+        bill = await client.get_cart(
+            address_id=user.swiggy_address_id, user_token=token
+        )
     except Exception as e:
         log.warning("cart-total fetch failed (%s); showing menu price only", e)
 
