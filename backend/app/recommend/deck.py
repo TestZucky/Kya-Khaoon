@@ -95,12 +95,22 @@ def _rank_llm_picks(
 
 
 def _recent_signals(db: DBSession, user_id: int) -> tuple[set[str], set[str], set[int]]:
-    """What the user has recently seen/rejected — feeds the variety penalty."""
+    """
+    What the user has recently seen/rejected — feeds the variety penalty.
+
+    Swipe carries no user_id, so ownership is walked through
+    swipe → deck_card → deck → session.user_id. Without that chain the query
+    reads every user's swipes: another user's biryani would then suppress North
+    Indian in this deck, and `exclude_ids` would drop concepts outright.
+    """
     since = datetime.now(timezone.utc) - timedelta(days=3)
     rows = db.exec(
         select(DishConcept.cuisine, DishConcept.cooking_style, DishConcept.id)
         .join(DeckCard, DeckCard.dish_concept_id == DishConcept.id)
         .join(Swipe, Swipe.deck_card_id == DeckCard.id)
+        .join(Deck, Deck.id == DeckCard.deck_id)
+        .join(Session, Session.id == Deck.session_id)
+        .where(Session.user_id == user_id)
         .where(Swipe.created_at >= since)
     ).all()
     cuisines = {r[0].lower() for r in rows}
@@ -116,6 +126,9 @@ def _recent_names(db: DBSession, user_id: int, days: int = 3) -> list[str]:
         select(DishConcept.name)
         .join(DeckCard, DeckCard.dish_concept_id == DishConcept.id)
         .join(Swipe, Swipe.deck_card_id == DeckCard.id)
+        .join(Deck, Deck.id == DeckCard.deck_id)
+        .join(Session, Session.id == Deck.session_id)
+        .where(Session.user_id == user_id)
         .where(Swipe.created_at >= since)
     ).all()
     return list(dict.fromkeys(rows))  # de-duped, order-preserving
