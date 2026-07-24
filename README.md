@@ -1,8 +1,21 @@
-# Kya Khaoon 🍽️
+<h1 align="center">Kya Khaoon 🍽️</h1>
 
-**_What should I eat today?_** — a phone-first app that answers the question for
-you. Two quick screens, then five AI-picked dishes resolved live on Swiggy:
-swipe right to add to your cart, left to skip.
+<p align="center">
+  <b><i>What should I eat today?</i></b><br/>
+  A phone-first app that answers the question for you — two quick screens,<br/>
+  then five AI-picked dishes resolved live on Swiggy.<br/>
+  Swipe right to add to your cart, left to skip.
+</p>
+
+<p align="center">
+  <a href="https://github.com/TestZucky/Kya-Khaoon/actions/workflows/backend-tests.yml"><img alt="Backend tests" src="https://github.com/TestZucky/Kya-Khaoon/actions/workflows/backend-tests.yml/badge.svg"/></a>
+  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue.svg"/></a>
+  <img alt="Python 3.13" src="https://img.shields.io/badge/python-3.13-3776AB?logo=python&logoColor=white"/>
+  <img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white"/>
+  <img alt="React 18" src="https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black"/>
+  <img alt="PostgreSQL 16" src="https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white"/>
+  <img alt="Docker" src="https://img.shields.io/badge/Docker-compose-2496ED?logo=docker&logoColor=white"/>
+</p>
 
 ---
 
@@ -13,26 +26,26 @@ the decision — the actual work — stays yours. Most people don't want to brow
 they want to eat.
 
 Kya Khaoon inverts that. It knows your diet, allergies, budget, spice tolerance
-and what you ate this week, asks two things that change meal to meal (mood, how
-many people), and returns **five dishes**. No feed, no infinite scroll, no
-filters to tune. You swipe five times and you're done.
+and what you ate this week, asks the two things that change meal to meal, and
+returns **five dishes**. No feed, no infinite scroll, no filters to tune. You
+swipe five times and you're done.
 
 It deliberately stops at the cart. Kya Khaoon owns the *decision*; Swiggy owns
 the transaction. There is no order-placement endpoint in this codebase — the
 hand-off is a checkout link, and payment happens where it always did.
 
-## Architecture
+## How it works
 
 React on the front, FastAPI behind it, one OpenAI call and one Swiggy MCP server
 either side. The interesting part isn't the boxes — it's what flows between them.
 
 ```mermaid
 flowchart LR
-    collect["<b>1 · COLLECT</b><br/>onboarding, once<br/>+ mood &amp; party,<br/>every open"]
+    collect["<b>1 · ASK</b><br/>onboarding, once<br/>+ mood &amp; party,<br/>every open"]
     store[("<b>2 · STORE</b><br/>profile · session<br/>· swipe")]
-    derive["<b>3 · DERIVE</b><br/>per deck,<br/>never stored"]
-    stage1["<b>4 · STAGE 1</b><br/>decide the dish<br/>OpenAI → 8<br/>→ 🛡️ → rank → 5"]
-    stage2["<b>5 · STAGE 2</b><br/>resolve on Swiggy<br/>MCP search<br/>→ best live offer"]
+    derive["<b>3 · WORK OUT</b><br/>per deck,<br/>never stored"]
+    stage1["<b>4 · DECIDE</b><br/>the dish<br/>OpenAI → 8<br/>→ 🛡️ → rank → 5"]
+    stage2["<b>5 · RESOLVE</b><br/>on Swiggy<br/>MCP search<br/>→ best live offer"]
     card["<b>5 cards</b><br/>real price, ETA,<br/><i>why it fits</i>"]
     cart["<b>Cart</b><br/>add, then<br/>hand off"]
 
@@ -44,116 +57,108 @@ flowchart LR
     cart -.-> swiggy
 ```
 
-**Two stages, and the split is the point.** Swiggy can tell you a dish's price,
-ETA and stock. It cannot tell you its ingredients, allergens or how heavy it is —
-which is exactly what deciding requires. So stage 1 picks dish *ideas* against a
-taste profile, and stage 2 turns each idea into a real, orderable listing.
+**It works in two stages, and the split is the point.** Swiggy can tell you a
+dish's price, delivery time and whether it's in stock. It cannot tell you what's
+in it, what you're allergic to, or how heavy it'll sit — which is exactly what
+deciding requires. So stage 1 picks dish *ideas* against your taste, and stage 2
+turns each idea into something you can actually order.
 
-### 1 · What we collect
+### 1 · What we ask
 
-Deliberately little. Two onboarding screens, split by consequence: screen 1 asks
-the two answers that are *hard filters*, screen 2 asks what merely tilts ranking.
+Deliberately little, across two screens split by consequence.
 
-| When | Asked | Why it's asked there |
+| When | What we ask | Why there |
 |---|---|---|
-| Onboarding, screen 1 | `diet`, `allergies` | The only answers where being wrong means serving food someone can't eat |
-| Onboarding, screen 2 | `budget`, `cuisines`, `spice_level` | Tilt the ranking, never exclude |
-| Profile, optional | `goal`, `height_cm`, `weight_kg`, `home_state` | Sharpen picks; never block a first deck |
-| Every open | `mood`, party size | Genuinely change meal to meal, so they're never stored as truth |
-| Nobody asks | meal period | Read from the device clock |
+| **First screen** | Diet, allergies | The only answers where being wrong means serving food you can't eat |
+| **Second screen** | Budget, favourite cuisines, spice tolerance | These tilt the ranking — they never rule a dish out |
+| **Later, optional** | Goal, height and weight, home state | Sharpen the picks; never block your first deck |
+| **Every time you open** | Mood, how many people | Genuinely change meal to meal, so they're never stored as truth |
+| **Never asked** | Which meal you're in | Read from your phone's clock |
 
-Three answers are translated on the way in (`lib/mapPrefs.ts`): multi-select diet
-collapses to the most restrictive single value, a budget number becomes a band,
-and party size becomes both a `companions` label for the prompt and the cart
-quantity — a table of three adds three portions.
+Three answers get translated on the way in: a multi-select diet collapses to its
+most restrictive choice, a budget number becomes a band, and party size becomes
+both a word the model understands and the quantity added to your cart — a table
+of three orders three portions.
 
-### 2 · Where it's stored
+### 2 · Where it lives
 
-State is split by **lifetime**, so "something light tonight" can refine one deck
-without ever overwriting "I am vegetarian".
+Everything is filed by **how long it stays true**. That's what lets "something
+light tonight" shape one deck without ever overwriting "I'm vegetarian".
 
-| Table | Lifetime | Holds |
+| What | Lives for | Holds |
 |---|---|---|
-| `user` | forever | identity (`device_id` / `phone` / `google_sub`), chosen Swiggy address, Swiggy OAuth tokens |
-| `profile` | permanent | diet, allergies, budget band, cuisines, spice, goal, body metrics, home state |
-| `session` | one deck | mood, party, meal period, any per-meal budget override |
-| `swipe` | history | every left/right + rejection reason — the learning signal |
-| `dishconcept` | grows | the dish vocabulary, upserted from whatever the model generates |
-| `offer` · `deck` · `deck_card` | one deck | the resolved listings actually shown |
+| **Account** | forever | who you are, your chosen Swiggy address, your Swiggy tokens |
+| **Profile** | until you change it | diet, allergies, budget, cuisines, spice, goal, body metrics |
+| **This meal** | one deck | mood, party size, meal period, any one-off budget |
+| **Swipes** | history | every left and right, with the reason — the only thing that learns |
+| **Dish vocabulary** | grows | every dish the model has ever proposed, kept for next time |
+| **The deck** | one deck | the listings actually shown, exactly as they were |
 
-### 3 · What we derive
+### 3 · What we work out
 
-None of this is stored or asked for. It's recomputed on every deck request, which
-is what keeps a stale field from quietly poisoning future picks.
+None of this is asked for, and none of it is stored. It's recalculated from
+scratch on every request — which is what stops a stale answer from quietly
+poisoning your picks months later.
 
-| Derived | From | Feeds |
+| We work out | From | So that |
 |---|---|---|
-| `veg_only` | `diet ∈ {veg, vegan, jain}` | Swiggy's `vegFilter` **and** the hard filter |
-| `budget_ceiling` | session override, else the band | scoring, and stage-2 ranking |
-| target heaviness | `mood` (comfort → 5, light → 1) | scoring |
-| BMI + category | `height_cm`, `weight_kg` | a nudge in the prompt and in scoring — never a restriction |
-| recent cuisines · styles · dish ids | swipes, last 3 days | the variety penalty |
-| just-ordered dishes, usual spend | Swiggy `get_food_orders` | the prompt, so the deck doesn't echo Tuesday's dinner |
+| Whether to search veg-only | your diet | Swiggy never returns something you can't eat |
+| What you can spend | tonight's budget, else your usual | nothing over it ranks well |
+| How heavy the meal should be | your mood | "light" and "comfort" mean different dishes |
+| Roughly how you're built | height and weight | picks tilt gently — never restrict |
+| What you've seen lately | your last three days of swipes | the same cuisine doesn't come back twice |
+| What you actually order | your Swiggy history | it echoes what you love and skips last night's dinner |
 
-### 4 · Stage 1 — deciding the dish
+### 4 · Deciding the dish
 
-The prompt is assembled from the profile plus the derived values above:
+Your profile and everything above go to the model as one short brief — with
+spice as a word rather than a number, because "mild" reads better than `0`.
 
-```
-Diet · Allergies (NEVER suggest) · Avoid · Favourite cuisines · Goal
-Spice tolerance (as words — "mild", not 0) · Budget: up to ₹N · Meal right now
-Home region · BMI · Mood · Eating with · Order history · Ate/saw recently
-```
+It comes back with **eight dishes, not five**, each described honestly enough to
+be ranked: what's in it, how heavy, how spicy, what it usually costs, which meals
+it suits. Then two things happen that the model gets no vote in.
 
-OpenAI returns **8 candidates, not 5**, under a strict JSON schema — each one
-carrying `name`, `search_query`, `cuisine`, `is_veg`, `contains[]`, `why`,
-`combo`, `ingredients[]`, `cooking_style`, `heaviness`, `spice_level`,
-`typical_price`, `typical_calories` and `meals[]`.
+1. **Anything unsafe is dropped.** Not scored low — removed. Wrong for your diet,
+   or carrying something you're allergic to, and it's gone before ranking starts.
+   Checked more than once, because models hallucinate and an allergy is not a
+   maybe.
+2. **The rest are re-ranked to five** by plain, readable rules: budget, mood, the
+   meal you're in, your heat tolerance, what you've eaten lately, your goal. The
+   model's own one-line *why* is kept as the card's reason — only the order is
+   ours.
 
-Those last seven exist so the deterministic scorer has something to rank on.
-Numbers are **clamped, not trusted** — a returned `heaviness: 99` becomes 5
-rather than skewing every comparison it touches.
+The model knows what food *is*; the rules are what apply **your** constraints the
+same way every single time. Asking one model to do both at once is where it
+quietly slips — so it proposes, and the rules dispose.
 
-Then two things happen that the model does not get a vote in:
+With no `OPENAI_API_KEY` the same rules run the whole stage over a starter
+catalogue, and the app works unchanged.
 
-1. **Safety filter.** Anything veg-required-but-not-veg, or whose `contains[]`
-   intersects the declared allergies, is *dropped* — never scored low, dropped.
-   Survivors are re-checked against the profile a second time after upsert.
-2. **Re-rank to five.** The scorer applies budget, mood, meal time, spice
-   tolerance, variety penalty, goal and BMI. The model's `why` is kept as the
-   card's reason; only the *ordering* comes from scoring.
+### 5 · Resolving on Swiggy
 
-The model knows what food *is*; the scorer is what consistently applies this
-user's constraints. Asking one model to do both in a single shot is where it
-quietly slips — so it proposes, and the rules dispose. With no `OPENAI_API_KEY`,
-the same scorer runs the whole stage over the seeded catalogue and the app works
-unchanged.
+All five ideas are looked up on Swiggy at once. Swiggy is a remote **OAuth MCP
+server**, so the backend forwards each user's own token per call.
 
-### 5 · Stage 2 — resolving on Swiggy
-
-Each of the five concepts is resolved against Swiggy in parallel. Swiggy is a
-remote **OAuth MCP server**, so the backend speaks JSON-RPC 2.0 over Streamable
-HTTP and forwards each user's own bearer token per call.
-
-| MCP tool | Used for |
+| What we call | For |
 |---|---|
 | `get_addresses` | the delivery address every other call is scoped to |
-| `get_food_orders` | order history → taste patterns, before picking |
-| `search_menu` | `addressId`, `query`, `vegFilter` → live listings, price, photo, stock |
-| `search_restaurants` | ETA, rating, open status, and the `(Ad)` flag |
-| `update_food_cart` | swipe right |
-| `get_food_cart` | the real payable total, read straight back |
+| `get_food_orders` | your past orders, read before we pick anything |
+| `search_menu` | live listings — price, photo, whether it's in stock |
+| `search_restaurants` | delivery time, rating, open or closed, and the `(Ad)` flag |
+| `update_food_cart` | a swipe right |
+| `get_food_cart` | the real total, read straight back from Swiggy |
 
-Ranking a concept's search hits: drop out-of-stock items, side dishes and combos
-that matched the word but aren't the meal, and restaurants that reported
-themselves closed. Score what's left on rating, staying within budget and ETA —
-then subtract 4 if it's an `(Ad)` placement, so a sponsored slot can never win on
-placement alone. **A concept with no open offer is dropped, not faked**, which is
-why a deck can come back with fewer than five cards.
+Out of stock, closed, or a side dish that merely matched the word? Dropped. What
+survives is scored on rating, fitting your budget, and how fast it arrives — then
+**penalised for being a sponsored placement**, so an ad can never win on
+placement alone.
 
-`/cart` calls `update_food_cart` and returns a checkout URL. It does not place
-the order — there is no order-placement endpoint in this codebase, and a test
-asserts the MCP path never calls `place_food_order` or `confirm_order`.
+**An idea with nothing actually available is dropped, not faked** — which is why
+a deck can honestly come back with fewer than five cards.
+
+Swiping right builds your cart and hands you a checkout link. It does not place
+the order: there is no order-placement endpoint here, and a test asserts we never
+call one.
 
 ## Local development
 
@@ -166,32 +171,40 @@ make dev                 # everything → http://localhost:5173
 ```
 
 That's it. The first run builds the images (a minute or so); after that it's a
-few seconds. **Postgres is the only supported database** — it runs as the `db`
-service, and the backend applies migrations on boot. The default config uses a
-**fake Swiggy client** — canned menus, prices and photos, no account and no
-network — so the full flow runs offline. Tap *Connect Swiggy* in the app to
-switch a user to the real thing.
+few seconds.
 
-Your working copy is bind-mounted into the containers, so editing a `.py`
-reloads uvicorn and editing a `.tsx` triggers Vite HMR, exactly as it would
-natively. You only need `make build` when `requirements.txt` or `package.json`
-changes.
+- **Postgres is the only supported database.** It runs as the `db` service, and
+  the backend applies migrations on boot.
+- **Swiggy is faked by default** — canned menus, prices and photos, no account
+  and no network — so the full flow runs offline. Tap *Connect Swiggy* in the app
+  to switch a user to the real thing.
+- **Your working copy is bind-mounted**, so editing a `.py` reloads uvicorn and
+  editing a `.tsx` triggers Vite HMR, exactly as it would natively. You only need
+  `make build` when `requirements.txt` or `package.json` changes.
+
+### Commands
+
+Run `make` on its own to list these at any time.
 
 | Command | Does |
 |---|---|
-| `make dev` | run db + backend + frontend (Ctrl+C stops them) |
-| `make backend` / `make frontend` | follow one service's logs |
-| `make test` | backend suite in a container, against a throwaway Postgres |
+| `make dev` | run db + backend + frontend (Ctrl+C stops them) — alias for `make up` |
+| `make build` | rebuild the images, after a `requirements.txt` / `package.json` change |
+| `make logs` | follow logs from all services |
+| `make backend` / `make frontend` | follow just one service's logs |
+| `make test` | the backend suite in a container, against a throwaway Postgres |
 | `make migrate` | bring the database up to the latest schema |
 | `make revision m="..."` | autogenerate a migration from the models |
-| `make psql` | psql shell on the dev database |
-| `make wipe` | destroy the database volume and rebuild from migrations |
 | `make seed` | *optional* — starter dishes for the no-LLM fallback |
-| `make sh` | shell into the backend container |
-| `make down` | stop everything (keeps your data) |
+| `make psql` | a psql shell on the dev database |
+| `make wipe` | destroy the database volume and rebuild from migrations (alias: `make reset`) |
+| `make sh` | a shell inside the backend container |
+| `make down` | stop everything, keeping your data (alias: `make stop`) |
 | `make clean` | remove containers, volumes and the frontend build |
 
-API docs are at `http://localhost:8000/docs` once the backend is up.
+API docs are at `http://localhost:8000/docs` once the backend is up. CI runs
+`make test` on the same image you use locally, so it can't drift from your
+machine.
 
 ## License
 
