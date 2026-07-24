@@ -16,6 +16,8 @@ from datetime import datetime, timezone
 from sqlalchemy import JSON, Column
 from sqlmodel import Field, SQLModel
 
+from app.crypto import EncryptedString
+
 
 def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
@@ -42,8 +44,10 @@ class User(SQLModel, table=True):
     swiggy_address_id: str | None = None
     # The user's Swiggy MCP OAuth tokens, forwarded on their behalf to the remote
     # MCP server. Null until they connect Swiggy; the fake client ignores them.
-    swiggy_token: str | None = None
-    swiggy_refresh_token: str | None = None
+    # Encrypted at rest — these act as the user on Swiggy, so a copy of this
+    # table must not be enough to use them. See app/crypto.py.
+    swiggy_token: str | None = Field(default=None, sa_type=EncryptedString)
+    swiggy_refresh_token: str | None = Field(default=None, sa_type=EncryptedString)
     swiggy_token_expires_at: datetime | None = None
     created_at: datetime = Field(default_factory=_utcnow)
 
@@ -62,7 +66,9 @@ class SwiggyAuthFlow(SQLModel, table=True):
 
     state: str = Field(primary_key=True)
     user_id: int = Field(foreign_key="user.id")
-    code_verifier: str
+    # The PKCE verifier is what proves the token request came from whoever
+    # started the authorize — a credential too, so it gets the same treatment.
+    code_verifier: str = Field(sa_type=EncryptedString)
     created_at: datetime = Field(default_factory=_utcnow)
 
 

@@ -87,7 +87,7 @@ light tonight" shape one deck without ever overwriting "I'm vegetarian".
 
 | What | Lives for | Holds |
 |---|---|---|
-| **Account** | forever | who you are, your chosen Swiggy address, your Swiggy tokens |
+| **Account** | forever | who you are, your chosen Swiggy address, your Swiggy tokens — encrypted, key held outside the database |
 | **Profile** | until you change it | diet, allergies, budget, cuisines, spice, goal, body metrics |
 | **This meal** | one deck | mood, party size, meal period, any one-off budget |
 | **Swipes** | history | every left and right, with the reason — the only thing that learns |
