@@ -55,7 +55,7 @@ are stripped out of logs before they're written, and email addresses are masked.
 
 ## Getting your data out, or deleted
 
-Email **rajawapp@gmail.com** and we'll export or delete everything tied to your
+Email **zuckyneeraj@gmail.com** and we'll export or delete everything tied to your
 account within **30 days**. Deleting removes your profile, swipes, sessions and
 stored Swiggy tokens.
 
