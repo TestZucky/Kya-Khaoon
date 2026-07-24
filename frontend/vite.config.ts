@@ -23,7 +23,9 @@ export default defineConfig({
     // backend, so a single tunnel origin serves both (no mixed content, no CORS).
     proxy: {
       "/api": {
-        target: "http://localhost:8000",
+        // Inside compose the backend answers to its service name, not localhost
+        // — compose sets VITE_PROXY_TARGET=http://backend:8000.
+        target: process.env.VITE_PROXY_TARGET ?? "http://backend:8000",
         changeOrigin: true,
         rewrite: (p) => p.replace(/^\/api/, ""),
       },

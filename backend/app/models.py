@@ -6,9 +6,9 @@ tendencies on Routine, and TEMPORARY per-meal context on Session. Keeping them
 apart is what lets "something light tonight" refine one deck without corrupting
 "I am vegetarian".
 
-List-valued columns use JSON (JSONB on Postgres) rather than native arrays so the
-same models run on SQLite in tests. Variety logic loads a row and computes in
-Python, so we never query inside these lists.
+List-valued columns use JSON rather than native Postgres arrays: variety logic
+loads a row and computes in Python, so we never query inside these lists and the
+extra indexing an array type would buy us goes unused.
 """
 
 from datetime import datetime, timezone

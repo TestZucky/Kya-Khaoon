@@ -9,7 +9,9 @@ Run:  python -m tests.test_google
 
 import os
 
-os.environ.setdefault("DATABASE_URL", "sqlite:///./google_test.db")
+from tests.dbsetup import fresh_db, use_test_db  # noqa: E402
+
+use_test_db()
 os.environ["SWIGGY_CLIENT"] = "fake"
 os.environ["GOOGLE_CLIENT_ID"] = "my-app.apps.googleusercontent.com"
 
@@ -17,7 +19,6 @@ from fastapi.testclient import TestClient  # noqa: E402
 
 from app.auth import google  # noqa: E402
 from app.config import get_settings  # noqa: E402
-from app.db import init_db  # noqa: E402
 from app.main import app  # noqa: E402
 
 get_settings.cache_clear()
@@ -42,7 +43,7 @@ VALID = {
 
 
 def main() -> None:
-    init_db()
+    fresh_db()
     c = TestClient(app)
 
     # --- valid token → user created, token gates the app ---

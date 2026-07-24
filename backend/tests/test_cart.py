@@ -17,12 +17,12 @@ import os
 import threading
 from http.server import HTTPServer
 
-DB_URL = "sqlite:///./cart_test.db"
-os.environ["DATABASE_URL"] = DB_URL
+from tests.dbsetup import fresh_db, use_test_db  # noqa: E402
+
+use_test_db()
 os.environ.setdefault("SWIGGY_CLIENT", "fake")
 
 from app.config import get_settings  # noqa: E402
-from app.db import init_db  # noqa: E402
 from app.main import app  # noqa: E402
 from app.seed import seed  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
@@ -102,7 +102,7 @@ def part_b_mcp_mock(c: TestClient) -> None:
 
 
 def main() -> None:
-    init_db()
+    fresh_db()
     seed()
     c = TestClient(app)
     try:

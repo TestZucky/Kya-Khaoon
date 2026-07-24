@@ -11,14 +11,15 @@ Run:  python -m tests.test_device
 
 import os
 
-os.environ.setdefault("DATABASE_URL", "sqlite:///./device_test.db")
+from tests.dbsetup import fresh_db, use_test_db  # noqa: E402
+
+use_test_db()
 os.environ["SWIGGY_CLIENT"] = "fake"
 
 from fastapi.testclient import TestClient  # noqa: E402
 
 from app.auth.device import reset_rate_limits  # noqa: E402
 from app.config import get_settings  # noqa: E402
-from app.db import init_db  # noqa: E402
 from app.main import app  # noqa: E402
 
 get_settings.cache_clear()
@@ -28,7 +29,7 @@ DEVICE_B = "99999999-8888-7777-6666-555555555555"
 
 
 def main() -> None:
-    init_db()
+    fresh_db()
     reset_rate_limits()
     c = TestClient(app)
 

@@ -16,13 +16,15 @@ Run:  python -m tests.test_llm_ranking
 import asyncio
 import os
 
-os.environ.setdefault("DATABASE_URL", "sqlite:///./llmrank_test.db")
+from tests.dbsetup import fresh_db, use_test_db  # noqa: E402
+
+use_test_db()
 os.environ["OPENAI_API_KEY"] = "test-key"  # presence only; chat_json is mocked
 
 from sqlmodel import Session, select  # noqa: E402
 
-from app.db import engine, init_db  # noqa: E402
-from app.models import DishConcept, Profile  # noqa: E402
+from app.db import engine  # noqa: E402
+from app.models import DishConcept, Profile, User  # noqa: E402
 from app.models import Session as MealSession  # noqa: E402
 from app.recommend import llm_concepts  # noqa: E402
 from app.recommend.deck import _rank_llm_picks  # noqa: E402
@@ -76,14 +78,22 @@ async def _fake_chat_json(system, user, schema, **kw):
 
 
 def main() -> None:
-    init_db()
+    fresh_db()
     llm_concepts.chat_json = _fake_chat_json  # type: ignore[assignment]
 
     with Session(engine) as db:
+        # Profile.user_id and Session.user_id are real foreign keys. SQLite left
+        # them unenforced, so this test used to invent user_id=1 with no such
+        # row; Postgres rejects that. Create the user the rows point at.
+        user = User()
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+
         profile = Profile(
-            user_id=1, diet="veg", budget_band="b200_350", spice_level=1
+            user_id=user.id, diet="veg", budget_band="b200_350", spice_level=1
         )
-        session = MealSession(user_id=1, meal="lunch")
+        session = MealSession(user_id=user.id, meal="lunch")
         db.add(profile)
         db.add(session)
         db.commit()

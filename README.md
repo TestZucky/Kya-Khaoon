@@ -157,28 +157,42 @@ asserts the MCP path never calls `place_food_order` or `confirm_order`.
 
 ## Local development
 
-Requires Python 3.11+, Node 20+, and `make`.
+Requires Docker and `make`. Nothing else — no Python, Node or Postgres on your
+machine, and no venv to keep in sync.
 
 ```bash
 cp .env.example .env     # add OPENAI_API_KEY for AI picks; works without one
-make install             # backend venv + frontend deps, first time only
-make dev                 # both servers → http://localhost:5173
+make dev                 # everything → http://localhost:5173
 ```
 
-That's it. The default config uses SQLite and a **fake Swiggy client** — canned
-menus, prices and photos, no account and no network — so the full flow runs
-offline. Tap *Connect Swiggy* in the app to switch a user to the real thing.
+That's it. The first run builds the images (a minute or so); after that it's a
+few seconds. **Postgres is the only supported database** — it runs as the `db`
+service, and the backend applies migrations on boot. The default config uses a
+**fake Swiggy client** — canned menus, prices and photos, no account and no
+network — so the full flow runs offline. Tap *Connect Swiggy* in the app to
+switch a user to the real thing.
+
+Your working copy is bind-mounted into the containers, so editing a `.py`
+reloads uvicorn and editing a `.tsx` triggers Vite HMR, exactly as it would
+natively. You only need `make build` when `requirements.txt` or `package.json`
+changes.
 
 | Command | Does |
 |---|---|
-| `make dev` | run backend + frontend together (Ctrl+C stops both) |
-| `make backend` / `make frontend` | run just one |
-| `make test` | backend suite — deterministic, no live LLM or Swiggy calls |
-| `make migrate` | bring the dev database up to the latest schema |
-| `make wipe` | delete the dev database and recreate it empty |
+| `make dev` | run db + backend + frontend (Ctrl+C stops them) |
+| `make backend` / `make frontend` | follow one service's logs |
+| `make test` | backend suite in a container, against a throwaway Postgres |
+| `make migrate` | bring the database up to the latest schema |
+| `make revision m="..."` | autogenerate a migration from the models |
+| `make psql` | psql shell on the dev database |
+| `make wipe` | destroy the database volume and rebuild from migrations |
 | `make seed` | *optional* — starter dishes for the no-LLM fallback |
-| `make stop` | free the dev ports (8000, 5173) |
-| `make clean` | remove the database + frontend build |
+| `make sh` | shell into the backend container |
+| `make down` | stop everything (keeps your data) |
+| `make clean` | remove containers, volumes and the frontend build |
+
+`./run.sh` does the same as `make dev`, plus an ngrok tunnel when `NGROK_DOMAIN`
+is set — that's how you test Google Sign-In on a phone, which needs HTTPS.
 
 API docs are at `http://localhost:8000/docs` once the backend is up.
 

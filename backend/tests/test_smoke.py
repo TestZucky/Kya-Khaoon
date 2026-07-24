@@ -1,7 +1,7 @@
 """
-End-to-end smoke test on SQLite with the fake Swiggy client.
+End-to-end smoke test on Postgres with the fake Swiggy client.
 
-Run:  DATABASE_URL=sqlite:///./smoke.db SWIGGY_CLIENT=fake python -m tests.test_smoke
+Run:  SWIGGY_CLIENT=fake python -m tests.test_smoke  (inside the container)
 
 Exercises the real request path: onboard → build a deck (both recommender stages)
 → swipe. Asserts the guardrails that actually matter — allergy exclusion, ad
@@ -10,18 +10,19 @@ de-prioritisation, and side-dish rejection.
 
 import os
 
-os.environ.setdefault("DATABASE_URL", "sqlite:///./smoke.db")
+from tests.dbsetup import fresh_db, use_test_db  # noqa: E402
+
+use_test_db()
 os.environ.setdefault("SWIGGY_CLIENT", "fake")
 
 from fastapi.testclient import TestClient  # noqa: E402
 
-from app.db import init_db  # noqa: E402
 from app.main import app  # noqa: E402
 from app.seed import seed  # noqa: E402
 
 
 def main() -> None:
-    init_db()
+    fresh_db()
     seed()
     client = TestClient(app)
 

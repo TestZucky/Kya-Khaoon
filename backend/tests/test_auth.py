@@ -10,18 +10,19 @@ Run:  python -m tests.test_auth
 
 import os
 
-os.environ.setdefault("DATABASE_URL", "sqlite:///./auth_test.db")
+from tests.dbsetup import fresh_db, use_test_db  # noqa: E402
+
+use_test_db()
 os.environ["SWIGGY_CLIENT"] = "fake"
 os.environ["SMS_PROVIDER"] = "console"
 
 from fastapi.testclient import TestClient  # noqa: E402
 
-from app.db import init_db  # noqa: E402
 from app.main import app  # noqa: E402
 
 
 def main() -> None:
-    init_db()
+    fresh_db()
     c = TestClient(app)
     phone = "9876500123"
 
