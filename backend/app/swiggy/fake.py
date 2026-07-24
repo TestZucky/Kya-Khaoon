@@ -67,7 +67,7 @@ class FakeSwiggyClient:
         )
 
     async def get_orders(
-        self, *, limit: int = 20, user_token: str | None = None
+        self, *, address_id: str = "", limit: int = 20, user_token: str | None = None
     ) -> list[PastOrder]:
         # A deterministic history with a clear pattern for the recommender to find:
         # a biryani/North-Indian lean around a ~₹300 spend, plus some variety.

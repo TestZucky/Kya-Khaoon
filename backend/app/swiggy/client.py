@@ -115,12 +115,15 @@ class SwiggyClient(Protocol):
         ...
 
     async def get_orders(
-        self, *, limit: int = 20, user_token: str | None = None
+        self, *, address_id: str, limit: int = 20, user_token: str | None = None
     ) -> list[PastOrder]:
         """
         The user's recent past orders, newest first — mined for taste patterns
         before we build a deck. Best-effort: returns [] when history is
         unavailable rather than blocking recommendations.
+
+        `address_id` is required — Swiggy scopes history to a delivery address and
+        rejects the call without one.
         """
         ...
 
