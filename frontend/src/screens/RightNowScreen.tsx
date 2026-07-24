@@ -32,7 +32,11 @@ export default function RightNowScreen() {
 
   const go = () => {
     setMealContext({ mood, partySize: party });
-    navigate("/picks", { replace: true });
+    // Pushed, not replaced: Back from the deck should land here — "change my
+    // mood / party size" is the one useful step backwards. Replacing put the
+    // deck on top of whatever preceded this screen, which for a fresh sign-up
+    // meant Back dropped the user into the Swiggy connect step they'd finished.
+    navigate("/picks");
   };
 
   return (
