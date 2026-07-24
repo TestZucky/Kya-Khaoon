@@ -6,7 +6,7 @@ with either, and what we already know about our own limits.
 
 ## Reporting a vulnerability
 
-Email **rajawapp@gmail.com** with the subject `SECURITY`. Please include what you
+Email **zuckyneeraj@gmail.com** with the subject `SECURITY`. Please include what you
 found, how to reproduce it, and what an attacker could do with it.
 
 You'll get an acknowledgement within **72 hours** and a fix or an explanation
