@@ -206,6 +206,13 @@ API docs are at `http://localhost:8000/docs` once the backend is up. CI runs
 `make test` on the same image you use locally, so it can't drift from your
 machine.
 
+## Security and privacy
+
+Your Swiggy tokens are encrypted at rest, no order is ever placed, and nothing
+that identifies you is sent to the model. The details — including what we know
+we haven't solved — are in [SECURITY.md](SECURITY.md) and
+[PRIVACY.md](PRIVACY.md).
+
 ## License
 
 [MIT](LICENSE).
