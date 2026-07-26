@@ -161,7 +161,7 @@ async def _select_stage1(
     session: Session,
     user_id: int,
     insights: OrderInsights,
-) -> list[ScoredConcept]:
+) -> tuple[list[ScoredConcept], str]:
     """
     LLM generates the dishes when a key is configured; otherwise the deterministic
     rules rank whatever concepts we already know. Either way we get a list of
@@ -172,8 +172,21 @@ async def _select_stage1(
     scorer is what consistently applies this user's budget, mood, meal time and
     heat tolerance. Asking it to also obey all of that in one shot is where it
     quietly slips — so it proposes, and the rules dispose.
+
+    Returns the picks and which path produced them, so the deck's log line can say
+    so outright. Both paths return five plausible dishes, so nothing downstream —
+    or on screen — reveals which one ran; a deployment whose key went missing
+    serves rules-only decks indefinitely and looks perfectly healthy.
+
+    The rules value carries *why* it was taken, because the three causes want
+    three different fixes: a missing key is a deployment mistake, an error is an
+    outage or a bad request, and an empty result means the safety post-filter
+    rejected everything the model offered.
     """
     cuisines, styles, seen_ids = _recent_signals(db, user_id)
+
+    # Assume no key; each step below narrows this to what actually happened.
+    source = "rules(no-key)"
 
     if get_settings().openai_api_key:
         try:
@@ -195,9 +208,11 @@ async def _select_stage1(
                     recent_cuisines=cuisines,
                     recent_styles=styles,
                     limit=5,
-                )
+                ), "llm"
+            source = "rules(llm-empty)"
             log.warning("LLM returned no usable picks; falling back to rules")
         except Exception as e:  # noqa: BLE001 — any LLM failure → rules fallback
+            source = "rules(llm-error)"
             log.warning("LLM pick failed (%s); falling back to rules", e)
 
     return select_concepts(
@@ -208,7 +223,7 @@ async def _select_stage1(
         recent_styles=styles,
         exclude_ids=seen_ids,
         limit=5,
-    )
+    ), source
 
 
 async def build_deck(
@@ -221,10 +236,14 @@ async def build_deck(
     session: Session,
     sequence: int = 1,
     user_token: str | None = None,
-) -> tuple[Deck, list[Card]]:
+) -> tuple[Deck, list[Card], str]:
+    """
+    Returns the deck, its cards, and the stage-1 source ("llm" or "rules(...)")
+    for the caller's log line — see `_select_stage1`.
+    """
     # Mine past orders for patterns before picking (order history → smarter deck).
     insights = await _fetch_order_insights(client, address_id, user_token)
-    picks = await _select_stage1(db, profile, session, user_id, insights)
+    picks, source = await _select_stage1(db, profile, session, user_id, insights)
     if not picks:
         # Both stage-1 paths came back empty. Nearly always one setup mistake:
         # no OPENAI_API_KEY *and* an unseeded catalogue, so the rules fallback
@@ -302,4 +321,4 @@ async def build_deck(
         rank += 1
 
     db.commit()
-    return deck, cards
+    return deck, cards, source

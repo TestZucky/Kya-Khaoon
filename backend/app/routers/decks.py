@@ -51,7 +51,7 @@ async def create_deck(
 
     token = await ensure_fresh(db, user)
     try:
-        deck, cards = await build_deck(
+        deck, cards, source = await build_deck(
             db,
             swiggy_for_user(user),
             user_id=user.id,
@@ -72,12 +72,22 @@ async def create_deck(
     if not cards:
         # Stage 1 had picks (or it would have raised), so every one of them failed
         # to resolve to an open listing. That's a real "nothing's available" answer.
-        log.warning("deck empty after resolution · user=%s", user.id)
+        # The source says whose picks missed: a model inventing dishes Swiggy has
+        # never heard of reads very differently from a stale seeded catalogue.
+        log.warning("deck empty after resolution · user=%s source=%s", user.id, source)
         raise UpstreamError(
             "Nothing we picked is available near you right now. Try again in a bit."
         )
 
-    log.info("deck built · user=%s cards=%d meal=%s", user.id, len(cards), body.meal)
+    # `source` is the one thing about a successful deck that isn't visible in the
+    # result: both stage-1 paths return five plausible dishes.
+    log.info(
+        "deck built · user=%s cards=%d meal=%s source=%s",
+        user.id,
+        len(cards),
+        body.meal,
+        source,
+    )
 
     return DeckOut(
         deck_id=deck.id,
